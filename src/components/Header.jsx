@@ -79,14 +79,6 @@ export default function Header({ isLoginOpen = false, onLoginOpenChange }) {
                     {/* RIGHT*/}
                     <div className="flex items-center gap-1">
 
-                        {/* Search */}
-                        <button
-                            aria-label="Search"
-                            className="p-2 text-[var(--color-text-primary)] hover:opacity-60 transition-opacity"
-                        >
-                            <IconSearch />
-                        </button>
-
                         {/* Theme Toggle */}
                         <button
                             aria-label="Toggle theme"
