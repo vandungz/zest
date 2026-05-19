@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary:     #F8F7F2;
+  --color-bg-surface:     #FFFFFF;
+  --color-bg-muted:       #EDEBE4;
+  --color-text-primary:   #050505;
+  --color-text-secondary: #6B6B63;
+  --color-border:         #D8D6CE;
+  --color-accent:         #D6FF5C;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+[data-theme="dark"] {
+  --color-bg-primary:     #090909;
+  --color-bg-surface:     #151515;
+  --color-bg-muted:       #202020;
+  --color-text-primary:   #F5F5F0;
+  --color-text-secondary: #A6A6A0;
+  --color-border:         #2A2A2A;
+  --color-accent:         #D6FF5C;  /* accent giữ nguyên cả dark/light */
+}
+
+/* ── BASE ──────────────────────────────────────────────── */
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── GLOBAL BUTTON HOVER — dùng accent làm màu hover chủ đạo ── */
+/* Tất cả button trong app đều follow rule này                   */
+
+/* Primary: bg đen → hover bg accent, chữ đen */
+.btn-primary {
+  background-color: var(--color-text-primary);
+  color: var(--color-bg-primary);
+}
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--color-accent);
+  color: #000000;
+}
+
+/* Outline: border + chữ đen → hover bg accent, chữ đen */
+.btn-outline {
+  border: 1px solid var(--color-text-primary);
+  color: var(--color-text-primary);
+  background-color: transparent;
+}
+.btn-outline:hover:not(:disabled) {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #000000;
+}
+
+/* Secondary: border muted → hover border accent */
+.btn-secondary {
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  background-color: transparent;
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
+  background-color: transparent;
+}
+
+/* Ghost: không border → hover bg accent nhẹ */
+.btn-ghost {
+  color: var(--color-text-secondary);
+  background-color: transparent;
+}
+.btn-ghost:hover:not(:disabled) {
+  background-color: var(--color-accent);
+  color: #000000;
+}
+
+/* Danger: chữ đỏ → hover bg accent */
+.btn-danger {
+  color: #ef4444;
+  background-color: transparent;
+}
+.btn-danger:hover:not(:disabled) {
+  background-color: var(--color-accent);
+  color: #000000;
+}
+
+/* Icon buttons — header icons, close buttons */
+.btn-icon {
+  color: var(--color-text-primary);
+  background-color: transparent;
+}
+.btn-icon:hover:not(:disabled) {
+  color: #000000;
+  background-color: var(--color-accent);
+}
+
+/* ── TRANSITION TOÀN CỤC ────────────────────────────────── */
+button {
+  transition: background-color 0.15s ease,
+              color 0.15s ease,
+              border-color 0.15s ease,
+              opacity 0.15s ease,
+              transform 0.15s ease;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* Input base */
+input {
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+/* Scrollbar ẩn cho category tabs */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
