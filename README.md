@@ -18,7 +18,6 @@
 - Header có menu bên trái, modal đăng nhập, drawer giỏ hàng và nút đổi theme.
 - UI responsive theo grid 2-6 cột tùy kích thước màn hình.
 
-
 ## Cấu trúc thư mục
 
 ```text
@@ -26,7 +25,14 @@ zest/
 +-- public/
 |   +-- favicon.svg
 |   +-- icons.svg
++-- docs/
+|   +-- reference/
+|   |   +-- CartContext.before-redux.jsx
+|   |   +-- useBooks.before-redux.js
+|   +-- state-management-roadmap.md
 +-- src/
+|   +-- app/
+|   |   +-- store.js
 |   +-- assets/
 |   |   +-- hero.png
 |   +-- components/
@@ -47,16 +53,26 @@ zest/
 |   |   +-- SideMenu.jsx
 |   +-- context/
 |   |   +-- AuthContext.jsx
-|   |   +-- CartContext.jsx
 |   |   +-- ThemeContext.jsx
 |   +-- data/
 |   |   +-- products.js
 |   |   +-- users.js
+|   +-- features/
+|   |   +-- books/
+|   |   |   +-- booksCache.js
+|   |   |   +-- booksSelectors.js
+|   |   |   +-- booksSlice.js
+|   |   |   +-- booksThunks.js
+|   |   +-- cart/
+|   |   |   +-- CartPersistenceBridge.js
+|   |   |   +-- cartSelectors.js
+|   |   |   +-- cartSlice.js
 |   +-- hooks/
-|   |   +-- useBooks.js
 |   |   +-- useDebounce.js
 |   +-- pages/
 |   |   +-- HomePage.jsx
+|   +-- stores/
+|   |   +-- uiStore.js
 |   +-- App.jsx
 |   +-- index.css
 |   +-- main.jsx
@@ -67,32 +83,76 @@ zest/
 
 ## Kiến trúc ứng dụng
 
-`App.jsx` bọc toàn bộ ứng dụng trong 3 provider:
+`App.jsx` bọc toàn bộ ứng dụng bằng Redux Provider, sau đó là các Context còn phù hợp:
 
 ```text
-ThemeProvider
-+-- AuthProvider
-    +-- CartProvider
+Provider store={store}
++-- ThemeProvider
+    +-- AuthProvider
+        +-- CartPersistenceBridge
         +-- HomePage
 ```
 
-Thứ tự này quan trọng vì `CartProvider` cần đọc user từ `AuthContext` để tạo key giỏ hàng riêng cho từng tài khoản.
+Thứ tự này quan trọng vì:
+
+- `Provider store={store}` cho phép toàn app dùng Redux qua `useSelector` và `useDispatch`.
+- `ThemeProvider` quản lý theme sáng/tối.
+- `AuthProvider` quản lý user đăng nhập.
+- `CartPersistenceBridge` nằm bên trong `AuthProvider`, nên đọc được `user` bằng `useAuth()` để tạo key giỏ hàng đúng cho từng user.
+
+## Kiến trúc state management
+
+Zest hiện dùng nhiều lớp quản lý state, mỗi lớp có trách nhiệm riêng:
+
+| Lớp | Quản lý | Lý do |
+| --- | --- | --- |
+| Redux Toolkit | Cart state, books async state | Đây là domain state dùng ở nhiều component, có nhiều action, derived data, async loading và persistence/cache boundary. |
+| Zustand | Overlay UI state | Cart drawer, side menu và login modal là UI state nhẹ, cần phối hợp giữa nhiều component nhưng không cần Redux boilerplate. |
+| Context | Auth và theme | Auth hiện vẫn là fake-login đơn giản. Theme là use case tốt cho Context vì chỉ có một giá trị global kèm DOM/localStorage side effect. |
+| Local component state | Search, filter, pagination, image fallback, form fields | Các state này thuộc một màn hình hoặc một component cụ thể, chưa cần global ownership. |
+
+## Redux store
+
+Redux store được tạo trong `src/app/store.js`:
+
+```text
+store
++-- cart
+|   +-- items
++-- books
+    +-- items
+    +-- status
+    +-- error
+```
+
+`cart` và `books` là hai slice độc lập. Component đọc dữ liệu bằng selector, còn thay đổi state bằng action/thunk.
 
 ## Luồng tải dữ liệu sách
 
-Dữ liệu sách được lấy trong `src/data/products.js` thông qua Open Library:
+Dữ liệu sách được lấy trong `src/data/products.js` thông qua Open Library, nhưng lifecycle loading/error/cache hiện được quản lý bằng Redux Toolkit:
 
 ```text
 HomePage
-+-- useBooks()
-    +-- đọc cache từ localStorage: zest-books-cache
-    +-- nếu cache còn hạn 24 giờ: dùng cache
-    +-- nếu không có cache:
-        +-- fetch Open Library API
-        +-- lọc sách có title và cover_i
-        +-- transform thành model nội bộ
-        +-- ghi cache mới vào localStorage
++-- useEffect
+    +-- nếu books.status === idle
+        +-- dispatch(fetchBooks())
+            +-- booksThunks.js
+                +-- đọc cache từ localStorage: zest-books-cache
+                +-- nếu cache còn hạn 24 giờ: return cached data
+                +-- nếu không có cache:
+                    +-- fetch Open Library API
+                    +-- transform thành model nội bộ trong data/products.js
+                    +-- ghi cache mới bằng booksCache.js
+                    +-- fulfilled -> booksSlice lưu items
 ```
+
+State của books:
+
+| Field | Ý nghĩa |
+| --- | --- |
+| `items` | Danh sách sách đã load |
+| `status` | `idle`, `loading`, `succeeded` hoặc `failed` |
+| `error` | Message lỗi khi fetch thất bại |
 
 Model sách sau khi transform:
 
@@ -108,13 +168,12 @@ Model sách sau khi transform:
 
 ## Luồng tìm kiếm, lọc và phân trang
 
-Trang chính quản lý state tại `HomePage.jsx`:
+Trang chính quản lý UI state cục bộ tại `HomePage.jsx`:
 
 ```text
 searchQuery      -> giá trị người dùng nhập
 activeCategory   -> danh mục đang chọn
 currentPage      -> trang hiện tại
-isLoginOpen      -> trạng thái modal đăng nhập
 ```
 
 Luồng xử lý:
@@ -163,44 +222,77 @@ Lưu ý: đây là cơ chế authentication giả lập phục vụ bài tập f
 
 ## Luồng giỏ hàng
 
-Giỏ hàng được quản lý trong `CartContext.jsx` bằng `useReducer`.
+Giỏ hàng hiện được quản lý bằng Redux Toolkit trong `src/features/cart/cartSlice.js`.
 
 ```text
 ProductCard
 +-- Add to Cart
-    +-- nếu chưa đăng nhập: mở LoginModal
+    +-- nếu chưa đăng nhập: mở LoginModal bằng Zustand
     +-- nếu đã đăng nhập:
-        +-- addItem(book)
-            +-- dispatch ADD_ITEM
-                +-- sách đã có: tăng quantity
-                +-- sách chưa có: thêm item với quantity = 1
+        +-- dispatch(addItem(book))
+            +-- sách đã có: tăng quantity
+            +-- sách chưa có: thêm item với quantity = 1
 ```
 
 Reducer hỗ trợ các action:
 
-| Action | Tác dụng |
+| Action creator | Tác dụng |
 | --- | --- |
-| `ADD_ITEM` | Thêm sách mới hoặc tăng số lượng nếu đã có |
-| `REMOVE_ITEM` | Xóa một sách khỏi giỏ hàng |
-| `INCREASE_QUANTITY` | Tăng số lượng sách |
-| `DECREASE_QUANTITY` | Giảm số lượng, nếu về 0 thì xóa khỏi giỏ |
-| `CLEAR_CART` | Xóa toàn bộ giỏ hàng |
-| `LOAD_CART` | Nạp giỏ hàng từ `localStorage` |
+| `addItem(book)` | Thêm sách mới hoặc tăng số lượng nếu đã có |
+| `removeItem(id)` | Xóa một sách khỏi giỏ hàng |
+| `increaseQuantity(id)` | Tăng số lượng sách |
+| `decreaseQuantity(id)` | Giảm số lượng, nếu về 0 thì xóa khỏi giỏ |
+| `clearCart()` | Xóa toàn bộ giỏ hàng |
+| `loadCart(items)` | Nạp giỏ hàng từ `localStorage` |
 
-Key lưu giỏ hàng:
+Derived data của giỏ hàng nằm trong `cartSelectors.js`:
+
+| Selector | Cách tính |
+| --- | --- |
+| `selectCartItems` | Trả về `state.cart.items` |
+| `selectTotalItems` | Tổng `quantity` của tất cả item |
+| `selectSubtotal` | Tổng `price * quantity` |
+| `selectIsCartEmpty` | `items.length === 0` |
+| `selectCartItemById` | Tìm item theo `id` |
+
+## Luồng lưu giỏ hàng
+
+Cart persistence hiện nằm trong `CartPersistenceBridge.js`.
 
 ```text
-Đã đăng nhập:  zest-cart-{user.id}
-Chưa đăng nhập: zest-cart-guest
+CartPersistenceBridge
++-- đọc user từ AuthContext
++-- tạo cartKey
+    +-- đã đăng nhập:  zest-cart-{user.id}
+    +-- chưa đăng nhập: zest-cart-guest
++-- khi cartKey đổi:
+    +-- đọc localStorage
+    +-- dispatch(loadCart(items))
++-- khi Redux cart items đổi:
+    +-- ghi localStorage theo cartKey hiện tại
 ```
 
-Derived data trong giỏ hàng:
+Bridge component được dùng thay middleware vì auth vẫn nằm trong Context. Redux middleware chỉ thấy Redux state, trong khi hiện tại Redux store chưa có `state.auth`.
 
-| Giá trị | Cách tính |
-| --- | --- |
-| `totalItems` | Tổng `quantity` của tất cả item |
-| `subtotal` | Tổng `price * quantity` |
-| `isEmpty` | `items.length === 0` |
+## Luồng UI overlay
+
+Overlay UI state được quản lý bằng Zustand trong `src/stores/uiStore.js`.
+
+```text
+uiStore
++-- isCartOpen
++-- isSideOpen
++-- isLoginOpen
++-- openCart()
++-- closeCart()
++-- openSideMenu()
++-- closeSideMenu()
++-- openLogin()
++-- closeLogin()
++-- closeAllOverlays()
+```
+
+`Header.jsx` đọc overlay state bằng custom hook `useHeaderOverlayState()`. Hook này gom các state/action Header cần, và dùng `useShallow` để tránh re-render không cần thiết khi các field không đổi.
 
 ## Luồng theme sáng/tối
 
@@ -215,27 +307,32 @@ Người dùng bấm nút đổi theme
             +-- lưu localStorage key zest-theme
 ```
 
+Theme vẫn giữ ở Context vì đây là state global đơn giản, chỉ có một giá trị chính và một số side effect rõ ràng.
+
 Màu sắc được định nghĩa bằng CSS variables trong `src/index.css`. Khi `data-theme="dark"`, các biến màu được đổi sang bảng màu tối, còn màu accent giữ nguyên.
 
 ## Custom hooks
 
 | Hook | File | Vai trò |
 | --- | --- | --- |
-| `useBooks` | `src/hooks/useBooks.js` | Tải sách từ Open Library, đọc/ghi cache 24 giờ, trả về `products`, `loading`, `error` |
 | `useDebounce` | `src/hooks/useDebounce.js` | Trì hoãn cập nhật giá trị trong 300ms để giảm số lần filter khi người dùng gõ tìm kiếm |
+| `useHeaderOverlayState` | `src/components/Header.jsx` | Gom Zustand overlay state/action mà Header cần dùng |
+
+`useBooks` đã được thay bằng Redux Toolkit (`booksSlice`, `booksThunks`, `booksSelectors`, `booksCache`). Nếu cần đối chiếu cách cũ, xem `docs/reference/useBooks.before-redux.js`.
 
 ## React hooks được sử dụng
 
 | Hook | Nội dung trong dự án |
 | --- | --- |
-| `useState` | Quản lý form login, search query, category, page, overlay state, image error |
-| `useEffect` | Sync `localStorage`, fetch dữ liệu, lock scroll khi overlay mở, lắng nghe phím Escape |
-| `useReducer` | Quản lý giỏ hàng theo action rõ ràng và immutable |
-| `useContext` | Chia sẻ auth, cart và theme giữa các component |
-| `useMemo` | Tính `filteredBooks`, `paginatedBooks`, `totalItems`, `subtotal`, `pageNumbers` |
+| `useState` | Quản lý form login, search query, category, page, image error |
+| `useEffect` | Sync `localStorage`, fetch dữ liệu bằng thunk trigger, lock scroll khi overlay mở, lắng nghe phím Escape |
+| `useContext` | Chia sẻ auth và theme giữa các component |
+| `useMemo` | Tính `filteredBooks`, `paginatedBooks`, `pageNumbers` |
 | `useCallback` | Giữ reference handler ổn định cho các component memoized |
-| `useRef` | Scroll tới collection và focus input email khi mở modal |
+| `useRef` | Scroll tới collection, focus input email khi mở modal, chặn save cart rỗng trước khi hydrate xong |
 | `memo` | Giảm render lại cho `ProductCard`, `ProductList`, `CategoryTabs`, `SearchBar`, `Pagination` |
+| `useSelector` | Đọc Redux state qua selectors |
+| `useDispatch` | Dispatch Redux actions và thunks |
 
 ## Các component chính
 
@@ -276,3 +373,12 @@ https://openlibrary.org/search.json?q=subject:fiction&limit=1000&fields=key,titl
 ```text
 https://covers.openlibrary.org/b/id/{cover_i}-M.jpg
 ```
+
+## Tài liệu học tập
+
+- `docs/state-management-roadmap.md`: roadmap refactor state management theo từng phase.
+- `docs/reference/CartContext.before-redux.jsx`: bản CartContext cũ để đối chiếu trước/sau Redux Toolkit.
+- `docs/reference/useBooks.before-redux.js`: bản useBooks cũ để đối chiếu trước/sau Redux Toolkit async state.
+- `src/features/cart/*`: ví dụ Redux Toolkit cho domain state có derived data và persistence theo user.
+- `src/features/books/*`: ví dụ Redux Toolkit cho async state, thunk và cache service.
+- `src/stores/uiStore.js`: ví dụ Zustand cho UI state nhẹ.
