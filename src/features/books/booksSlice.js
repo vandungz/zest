@@ -24,6 +24,12 @@ const booksSlice = createSlice({
                 state.items = action.payload
             })
             .addCase(fetchBooks.rejected, (state, action) => {
+                // Abort đưa về idle để lần mount sau re-fetch được.
+                if (action.meta.aborted) {
+                    state.status = 'idle'
+                    return
+                }
+
                 // Lưu lỗi dễ đọc để UI render được thông báo.
                 state.status = 'failed'
                 state.error = action.error.message || 'Failed to load books'

@@ -17,8 +17,8 @@ function transformBook(book, index) {
     }
 }
 
-export async function fetchBook() {
-    const res = await fetch(API_URL)
+export async function fetchBook(signal) {
+    const res = await fetch(API_URL, { signal })
     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
     const data = await res.json()
     return data.docs

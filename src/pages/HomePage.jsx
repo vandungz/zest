@@ -23,11 +23,12 @@ function HomePage() {
   const loading = status === 'idle' || status === 'loading'
 
   useEffect(() => {
-    // Chỉ fetch khi books trong Redux chưa được load.
-    if (status === 'idle') {
-      dispatch(fetchBooks())
-    }
-  }, [dispatch, status])
+    // Dispatch khi HomePage mount.
+    // Thunk condition tự chặn nếu books không còn ở trạng thái idle.
+    // Không abort ở cleanup vì React StrictMode trong dev sẽ cleanup effect giả,
+    // làm request thật bị hủy trước khi fulfilled.
+    dispatch(fetchBooks())
+  }, [dispatch])
 
   // ── Search & Filter State ──────────────────────────────
   const [searchQuery, setSearchQuery] = useState('')
