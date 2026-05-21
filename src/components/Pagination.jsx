@@ -1,7 +1,7 @@
 import { memo, use, useCallback, useMemo } from "react";
 
-function prevBtn() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_2497_25894)"><path d="M14 7L9 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12L14 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_2497_25894"><rect width="24" height="24" fill="white"/></clipPath></defs></svg> }
-function nextBtn() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_2497_25895)"><path d="M10 17L15 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 12L10 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_2497_25895"><rect width="24" height="24" fill="white"/></clipPath></defs></svg> }
+function PrevBtn() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_2497_25894)"><path d="M14 7L9 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12L14 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_2497_25894"><rect width="24" height="24" fill="white"/></clipPath></defs></svg> }
+function NextBtn() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_2497_25895)"><path d="M10 17L15 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 12L10 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_2497_25895"><rect width="24" height="24" fill="white"/></clipPath></defs></svg> }
 
 const Pagination = memo(function Pagination({
     currentPage,
@@ -77,7 +77,7 @@ const Pagination = memo(function Pagination({
             hover:text-[var(--color-text-primary)]
             transition-colors text-sm
           "> 
-          <prevBtn />
+          <PrevBtn />
         </button>
 
         {/* Page numbers */}
@@ -126,7 +126,7 @@ const Pagination = memo(function Pagination({
             hover:text-[var(--color-text-primary)]
             transition-colors text-sm
           ">
-          <nextBtn />
+          <NextBtn />
         </button>
       </div>
     </div>
