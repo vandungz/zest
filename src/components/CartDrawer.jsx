@@ -1,5 +1,7 @@
 import { useCallback } from "react";
-import { useCart } from "../context/CartContext";
+import { useDispatch, useSelector } from 'react-redux'
+import { selectCartItems, selectSubtotal, selectIsCartEmpty, selectTotalItems } from '../features/cart/cartSelectors'
+import { removeItem, increaseQuantity, decreaseQuantity, clearCart } from '../features/cart/cartSlice'
 import Button from "./common/Button";
 
 function IconClose() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_2497_25965)"><path d="M7 7L17 17M7 17L17 7" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></g><defs><clipPath id="clip0_2497_25965"><rect width="24" height="24" fill="white" /></clipPath></defs></svg> }
@@ -83,26 +85,17 @@ function CartItem({ item, onIncrease, onDecrease, onRemove }) {
 }
 
 export default function CartDrawer({ isOpen, onClose }) {
-    const {
-        items,
-        totalItems,
-        subtotal,
-        isEmpty,
-        addItem,
-        removeItem,
-        increase,
-        decrease,
-        clearCart,
-    } = useCart()
+    const dispatch = useDispatch()
+    const items = useSelector(selectCartItems)
+    const subtotal = useSelector(selectSubtotal)
+    const isEmpty = useSelector(selectIsCartEmpty)
+    const totalItems = useSelector(selectTotalItems)
 
     // useCallback - stable reference để CartItem không re-render thừa
-    const handleIncrease = useCallback((id) => increase(id), [increase])
-    const handleDecrease = useCallback((id) => decrease(id), [decrease])
-    const handleRemove = useCallback((id) => removeItem(id), [removeItem])
-
-    const handleClear = useCallback(() => {
-        clearCart()
-    }, [clearCart])
+    const handleIncrease = useCallback((id) => dispatch(increaseQuantity(id)), [dispatch])
+    const handleDecrease = useCallback((id) => dispatch(decreaseQuantity(id)), [dispatch])
+    const handleRemove = useCallback((id) => dispatch(removeItem(id)), [dispatch])
+    const handleClear = useCallback(() => dispatch(clearCart()), [dispatch])
 
     return (
         <>

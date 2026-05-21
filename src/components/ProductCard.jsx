@@ -1,20 +1,22 @@
 import { memo, useState, useCallback } from 'react'
-import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
-import Avatar from './common/Avatar'
-import Button from './common/Button'
+import { useDispatch, useSelector } from 'react-redux'
+import { addItem } from '../features/cart/cartSlice'
+import { selectCartItemById } from '../features/cart/cartSelectors'
 import Badge from './common/Badge'
 
 // React.memo wrap toàn bộ component
 // Chỉ re-render khi prop "book" thay đổi reference
 // Khi search/filter -> card không match vẫn giữ nguyên output cũ
 const ProductCard = memo(function ProductCard({ book, onLoginRequired }) {
-    const { addItem, items } = useCart()
     const { isLoggedIn } = useAuth()
 
     // Kiểm tra book đã có trong cart chưa (derived state)
     // Logic đơn giản nên không cần useMemo
-    const cartItem = items.find(i => i.id === book.id)
+    // const cartItem = items.find(i => i.id === book.id)
+    const dispatch = useDispatch()
+    const cartItem = useSelector(state => selectCartItemById(state, book.id))
+    
     const inCart = Boolean(cartItem)
     const quantity = cartItem?.quantity ?? 0
     const [imgError, setImgError] = useState(false)
@@ -26,8 +28,8 @@ const ProductCard = memo(function ProductCard({ book, onLoginRequired }) {
             onLoginRequired?.()  // callback từ parent để mở LoginModal
             return
         }
-        addItem(book)
-    }, [isLoggedIn, addItem, book, onLoginRequired])
+        dispatch(addItem(book))
+    }, [isLoggedIn, dispatch, book, onLoginRequired])
 
     return (
         <article className="
