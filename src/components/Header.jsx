@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
-import { useCart } from "../context/CartContext";
+import { useSelector } from 'react-redux'
+import { selectTotalItems } from '../features/cart/cartSelectors'
+import { useShallow } from 'zustand/react/shallow'
+import { useUiStore } from '../stores/uiStore'
 import CartDrawer from './CartDrawer'
 import LoginModal from './LoginModal'
 import SideMenu from './SideMenu'
@@ -15,14 +18,41 @@ function IconMenu() { return <svg width="24" height="24" viewBox="0 0 24 24" fil
 function IconUser() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M17.2166 19.3323C15.9349 17.9008 14.0727 17 12 17C9.92734 17 8.06492 17.9008 6.7832 19.3323M12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12C21 16.9706 16.9706 21 12 21ZM12 14C10.3431 14 9 12.6569 9 11C9 9.34315 10.3431 8 12 8C13.6569 8 15 9.34315 15 11C15 12.6569 13.6569 14 12 14Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg> }
 function IconCart() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_2497_26252)"><path d="M4 9H20L19.1654 18.1811C19.0717 19.2112 18.208 20 17.1736 20H6.82643C5.79202 20 4.92829 19.2112 4.83464 18.1811L4 9Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /><path d="M8 11V8C8 5.79086 9.79086 4 12 4C14.2091 4 16 5.79086 16 8V11" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></g><defs><clipPath id="clip0_2497_26252"><rect width="24" height="24" fill="white" /></clipPath></defs></svg> }
 
-export default function Header({ isLoginOpen = false, onLoginOpenChange }) {
+function useHeaderOverlayState() {
+    return useUiStore(useShallow((state) => ({
+        // Gom state overlay mà Header cần đọc.
+        isCartOpen: state.isCartOpen,
+        isSideOpen: state.isSideOpen,
+        isLoginOpen: state.isLoginOpen,
+
+        // Gom action overlay mà Header truyền xuống drawer/modal/menu.
+        openCart: state.openCart,
+        closeCart: state.closeCart,
+        openSideMenu: state.openSideMenu,
+        closeSideMenu: state.closeSideMenu,
+        openLogin: state.openLogin,
+        closeLogin: state.closeLogin,
+        closeAllOverlays: state.closeAllOverlays,
+    })))
+}
+
+export default function Header() {
     const { isDark, toggleTheme } = useTheme()
     const { user, isLoggedIn } = useAuth()
-    const { totalItems } = useCart()
+    const totalItems = useSelector(selectTotalItems)
 
-    // UI state - Header và các component children consumed
-    const [isCartOpen, setIsCartOpen] = useState(false)
-    const [isSideOpen, setIsSideOpen] = useState(false)
+    const {
+        isCartOpen,
+        isSideOpen,
+        isLoginOpen,
+        openCart,
+        closeCart,
+        openSideMenu,
+        closeSideMenu,
+        openLogin,
+        closeLogin,
+        closeAllOverlays,
+    } = useHeaderOverlayState()
 
     // Lock body scrolling khi có overlay mở (một side effect)
     const isAnyOpen = isCartOpen || isLoginOpen || isSideOpen
@@ -36,15 +66,13 @@ export default function Header({ isLoginOpen = false, onLoginOpenChange }) {
     useEffect(() => {
         const handleEsc = (e) => {
             if (e.key === 'Escape') {
-                setIsCartOpen(false)
-                onLoginOpenChange?.(false)
-                setIsSideOpen(false)
+                closeAllOverlays()
             }
         }
         document.addEventListener('keydown', handleEsc)
         // Cleanup event sau khi unmount
         return () => document.removeEventListener('keydown', handleEsc)
-    }, [onLoginOpenChange])
+    }, [closeAllOverlays])
 
     return (
         <>
@@ -60,7 +88,7 @@ export default function Header({ isLoginOpen = false, onLoginOpenChange }) {
                     {/* LEFT — Hamburger */}
                     <button
                         aria-label="Open menu"
-                        onClick={() => setIsSideOpen(true)}
+                        onClick={openSideMenu}
                         className="p-2 -ml-2 text-[var(--color-text-primary)] hover:opacity-60 transition-opacity"
                     >
                         <IconMenu />
@@ -97,7 +125,7 @@ export default function Header({ isLoginOpen = false, onLoginOpenChange }) {
                             <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => onLoginOpenChange?.(true)}
+                                onClick={openLogin}
                                 className="ml-1"
                             >
                                 Login
@@ -107,7 +135,7 @@ export default function Header({ isLoginOpen = false, onLoginOpenChange }) {
                         {/* Cart Icon + Badge — luôn hiển thị */}
                         <button
                             aria-label={`Cart, ${totalItems} items`}
-                            onClick={() => setIsCartOpen(true)}
+                            onClick={openCart}
                             className="relative p-2 text-[var(--color-text-primary)] hover:opacity-60 transition-opacity"
                         >
                             <IconCart />
@@ -133,16 +161,16 @@ export default function Header({ isLoginOpen = false, onLoginOpenChange }) {
             {/* Conditional rendering — chỉ mount khi cần, unmount khi đóng */}
             <CartDrawer
                 isOpen={isCartOpen}
-                onClose={() => setIsCartOpen(false)}
+                onClose={closeCart}
             />
             <LoginModal
                 isOpen={isLoginOpen}
-                onClose={() => onLoginOpenChange?.(false)}
+                onClose={closeLogin}
             />
             <SideMenu
                 isOpen={isSideOpen}
-                onClose={() => setIsSideOpen(false)}
-                onLoginClick={() => onLoginOpenChange?.(true)}
+                onClose={closeSideMenu}
+                onLoginClick={openLogin}
             />
         </>
     )
