@@ -1,25 +1,40 @@
-import { useRef, useState, useMemo, useCallback } from 'react'
-import { useBooks }      from '../hooks/useBooks'
-import { useDebounce }   from '../hooks/useDebounce'
-import Spinner           from '../components/common/Spinner'
-import Header            from '../components/Header'
-import Hero              from '../components/Hero'
-import CategoryTabs      from '../components/CategoryTabs'
-import SearchBar         from '../components/SearchBar'
-import ProductList       from '../components/ProductList'
-import Pagination        from '../components/Pagination'
+import { useRef, useState, useMemo, useCallback, useEffect } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
+import { fetchBooks } from '../features/books/booksThunks'
+import { selectBooks, selectBooksStatus, selectBooksError } from '../features/books/booksSelectors'
+import { useUiStore } from '../stores/uiStore'
+import { useDebounce } from '../hooks/useDebounce'
+import Spinner from '../components/common/Spinner'
+import Header from '../components/Header'
+import Hero from '../components/Hero'
+import CategoryTabs from '../components/CategoryTabs'
+import SearchBar from '../components/SearchBar'
+import ProductList from '../components/ProductList'
+import Pagination from '../components/Pagination'
 
 const ITEMS_PER_PAGE = 20
 
 function HomePage() {
-  const { products, loading, error } = useBooks()
+  const dispatch = useDispatch()
+  const products = useSelector(selectBooks)
+  const status = useSelector(selectBooksStatus)
+  const error = useSelector(selectBooksError)
+
+  const loading = status === 'idle' || status === 'loading'
+
+  useEffect(() => {
+    // Chỉ fetch khi books trong Redux chưa được load.
+    if (status === 'idle') {
+      dispatch(fetchBooks())
+    }
+  }, [dispatch, status])
 
   // ── Search & Filter State ──────────────────────────────
-  const [searchQuery,     setSearchQuery]     = useState('')
-  const [activeCategory,  setActiveCategory]  = useState('All')
-  const [currentPage,     setCurrentPage]     = useState(1)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeCategory, setActiveCategory] = useState('All')
+  const [currentPage, setCurrentPage] = useState(1)
 
-  const [isLoginOpen, setIsLoginOpen] = useState(false)
+  const openLogin = useUiStore(state => state.openLogin)
 
   // useDebounce — trì hoãn filter 300ms sau khi user dừng gõ
   // Tránh filter 1000 items sau mỗi ký tự
@@ -45,7 +60,7 @@ function HomePage() {
     if (debouncedQuery.trim()) {
       const q = debouncedQuery.toLowerCase().trim()
       result = result.filter(book =>
-        book.title?.toLowerCase().includes(q)  ||
+        book.title?.toLowerCase().includes(q) ||
         book.author?.toLowerCase().includes(q) ||
         book.category?.toLowerCase().includes(q)
       )
@@ -87,19 +102,18 @@ function HomePage() {
   }, [])
 
   const handleLoginRequired = useCallback(() => {
-    setIsLoginOpen(true)
-  }, [])
+    // ProductCard goi ham nay khi user chua login.
+    // Login modal bay gio duoc mo tu Zustand thay vi local state.
+    openLogin()
+  }, [openLogin])
 
   // ── Render ─────────────────────────────────────────────
   if (loading) return <Spinner message="Đang tải sách từ Open Library..." />
-  if (error)   return <div className="p-8 text-red-500">❌ Lỗi: {error}</div>
+  if (error) return <div className="p-8 text-red-500">❌ Lỗi: {error}</div>
 
   return (
     <div>
-      <Header 
-        isLoginOpen={isLoginOpen}
-        onLoginOpenChange={setIsLoginOpen}
-      />
+      <Header />
 
       <main>
         <Hero onExplore={handleExplore} />
