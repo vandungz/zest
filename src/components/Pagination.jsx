@@ -1,45 +1,48 @@
-import { memo, use, useCallback, useMemo } from "react";
+import { memo, useCallback, useMemo } from "react";
 
 function PrevBtn() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_2497_25894)"><path d="M14 7L9 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 12L14 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_2497_25894"><rect width="24" height="24" fill="white"/></clipPath></defs></svg> }
 function NextBtn() { return <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#clip0_2497_25895)"><path d="M10 17L15 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 12L10 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><defs><clipPath id="clip0_2497_25895"><rect width="24" height="24" fill="white"/></clipPath></defs></svg> }
 
 const Pagination = memo(function Pagination({
-    currentPage,
-    totalItems,
-    itemsPerPage,
-    onPageChange,
-  }) {
-  // useMemo tính toán tổng số trang - chỉ tính khi totalItems thay đổi
-  const totalPages = useMemo(
-    () => Math.ceil(totalItems / itemsPerPage),
-    [totalItems, itemsPerPage]
-  )
+  currentPage,
+  totalItems,
+  itemsPerPage,
+  onPageChange,
+}) {
+  // Phép tính này rất nhẹ, không cần useMemo.
+  const totalPages = Math.ceil(totalItems / itemsPerPage)
 
-  // Tính range hiển thị
+  if (totalPages <= 1) return null
+
+  // Tính range hiển thị cho trang hiện tại.
   const rangeStart = (currentPage - 1) * itemsPerPage + 1
   const rangeEnd = Math.min(currentPage * itemsPerPage, totalItems)
 
-  // Tạo danh sách page numbers hiển thị: [1, 2, 3, '...', 50]
+  // Tạo danh sách page numbers hiển thị: [1, 2, 3, "...", totalPages].
   const pageNumbers = useMemo(() => {
     if (totalPages <= 5) {
       return Array.from({ length: totalPages }, (_, i) => i + 1)
     }
-    // Luôn show trang đầu, trang cuối, trang hiện tại và +-1
+
+    // Luôn show trang đầu, trang cuối, trang hiện tại và hai trang lân cận nếu có.
     const pages = new Set([1, totalPages])
-    if (currentPage > 1 && currentPage < 50) {
+
+    if (currentPage > 1) {
       pages.add(currentPage - 1)
+      pages.add(currentPage)
+    }
+
+    if (currentPage < totalPages) {
       pages.add(currentPage)
       pages.add(currentPage + 1)
     }
-    if (currentPage == 50) {
-      pages.add(currentPage - 2)
-      pages.add(currentPage - 1)
-      pages.add(currentPage)
-    }
-    return Array.from(pages).sort((a, b) => a - b)
+
+    return Array.from(pages)
+      .filter(page => page >= 1 && page <= totalPages)
+      .sort((a, b) => a - b)
   }, [totalPages, currentPage])
 
-  // useCallback giúp handler stable reference cho prev/next
+  // useCallback giúp handler stable reference cho prev/next.
   const handlePrev = useCallback(() => {
     if (currentPage > 1) onPageChange(currentPage - 1)
   }, [currentPage, onPageChange])
@@ -48,17 +51,15 @@ const Pagination = memo(function Pagination({
     if (currentPage < totalPages) onPageChange(currentPage + 1)
   }, [currentPage, totalPages, onPageChange])
 
-  if (totalPages <= 1 && totalPages >= 50) return null
-
   return (
     <div className="
-          flex flex-col sm:flex-row items-center justify-between
-          gap-4 pt-8 mt-8
-          border-t border-[var(--color-border)]
-        ">
+      flex flex-col sm:flex-row items-center justify-between
+      gap-4 pt-8 mt-8
+      border-t border-[var(--color-border)]
+    ">
       {/* Range label */}
       <p className="text-xs text-[var(--color-text-secondary)]">
-        {rangeStart}–{rangeEnd} of {totalItems}+ books
+        {rangeStart}-{rangeEnd} of {totalItems} books
       </p>
 
       {/* Page controls */}
@@ -76,13 +77,14 @@ const Pagination = memo(function Pagination({
             hover:border-[var(--color-text-secondary)]
             hover:text-[var(--color-text-primary)]
             transition-colors text-sm
-          "> 
+          "
+        >
           <PrevBtn />
         </button>
 
         {/* Page numbers */}
         {pageNumbers.map((page, index) => {
-          // Hiển thị "..." giữa các số không liền nhau
+          // Hiển thị "..." giữa các số không liền nhau.
           const prevPage = pageNumbers[index - 1]
           const showEllipsis = prevPage && page - prevPage > 1
 
@@ -90,7 +92,7 @@ const Pagination = memo(function Pagination({
             <div key={page} className="flex items-center gap-1">
               {showEllipsis && (
                 <span className="w-8 h-8 flex items-center justify-center text-xs text-[var(--color-text-secondary)]">
-                  ···
+                  ...
                 </span>
               )}
               <button
@@ -125,7 +127,8 @@ const Pagination = memo(function Pagination({
             hover:border-[var(--color-text-secondary)]
             hover:text-[var(--color-text-primary)]
             transition-colors text-sm
-          ">
+          "
+        >
           <NextBtn />
         </button>
       </div>
