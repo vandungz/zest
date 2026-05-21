@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from "react";
 import { USERS_DB } from "../data/users";
 
@@ -48,7 +49,8 @@ export function AuthProvider({ children }) {
         }
 
         // Lưu user vào localStorage, không lưu password
-        const { password: _, ...safeUser} = found
+        const safeUser = { ...found }
+        delete safeUser.password
         setUser(safeUser)
         return true
     }

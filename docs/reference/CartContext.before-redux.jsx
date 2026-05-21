@@ -1,3 +1,4 @@
+/* eslint-disable */
 // Historical reference only.
 // This was the cart Context implementation before the Redux Toolkit migration.
 // Do not import this file into app runtime code.

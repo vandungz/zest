@@ -12,8 +12,6 @@ const Pagination = memo(function Pagination({
   // Phép tính này rất nhẹ, không cần useMemo.
   const totalPages = Math.ceil(totalItems / itemsPerPage)
 
-  if (totalPages <= 1) return null
-
   // Tính range hiển thị cho trang hiện tại.
   const rangeStart = (currentPage - 1) * itemsPerPage + 1
   const rangeEnd = Math.min(currentPage * itemsPerPage, totalItems)
@@ -50,6 +48,8 @@ const Pagination = memo(function Pagination({
   const handleNext = useCallback(() => {
     if (currentPage < totalPages) onPageChange(currentPage + 1)
   }, [currentPage, totalPages, onPageChange])
+
+  if (totalPages <= 1) return null
 
   return (
     <div className="

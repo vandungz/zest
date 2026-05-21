@@ -22,7 +22,7 @@ function readCache() {
         }
 
         return data
-    } catch (error) {
+    } catch {
         localStorage.removeItem(CACHE_KEY)
         return null
     }

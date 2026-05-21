@@ -32,7 +32,7 @@ function IconEye({ open }) {
 }
 
 export default function LoginModal({ isOpen, onClose }) {
-    const { login, authError, clearError, isLoggIn } = useAuth()
+    const { login, authError, clearError } = useAuth()
 
     // Controlled form state
     // Với mỗi field là 1 state riêng
@@ -46,6 +46,7 @@ export default function LoginModal({ isOpen, onClose }) {
 
     // Reset form khi modal đóng
     // Side effect đồng bộ UI state với isOpen prop
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         if (!isOpen) {
             setEmail('')
@@ -55,6 +56,7 @@ export default function LoginModal({ isOpen, onClose }) {
             clearError()
         }
     }, [isOpen, clearError])
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     // Auto focus email input khi modal mở
     useEffect(() => {
