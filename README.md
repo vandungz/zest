@@ -134,17 +134,19 @@ Dữ liệu sách được lấy trong `src/data/products.js` thông qua Open Li
 ```text
 HomePage
 +-- useEffect
-    +-- nếu books.status === idle
-        +-- dispatch(fetchBooks())
+    +-- dispatch(fetchBooks()) khi HomePage mount
+        +-- thunk condition tự chặn nếu books.status không còn là idle
             +-- booksThunks.js
                 +-- đọc cache từ localStorage: zest-books-cache
                 +-- nếu cache còn hạn 24 giờ: return cached data
                 +-- nếu không có cache:
-                    +-- fetch Open Library API
+                    +-- fetch Open Library API bằng fetchBook(signal)
                     +-- transform thành model nội bộ trong data/products.js
                     +-- ghi cache mới bằng booksCache.js
                     +-- fulfilled -> booksSlice lưu items
 ```
+
+`HomePage` không abort request trong cleanup effect. Lý do là React `StrictMode` trong môi trường dev có thể chạy cleanup giả để phát hiện side effect không an toàn. Nếu cleanup gọi `promise.abort()`, request thật có thể bị hủy trước khi `books/fetchBooks/fulfilled` xảy ra. Việc chống dispatch trùng hiện được đặt ở `condition` của thunk.
 
 State của books:
 
@@ -153,6 +155,16 @@ State của books:
 | `items` | Danh sách sách đã load |
 | `status` | `idle`, `loading`, `succeeded` hoặc `failed` |
 | `error` | Message lỗi khi fetch thất bại |
+
+Async flow của books:
+
+| Action | Ý nghĩa |
+| --- | --- |
+| `books/fetchBooks/pending` | Bắt đầu đọc cache hoặc fetch API |
+| `books/fetchBooks/fulfilled` | Đã có dữ liệu từ cache hoặc network |
+| `books/fetchBooks/rejected` | Fetch lỗi hoặc request bị abort |
+
+Nếu request bị abort, `booksSlice` đưa `status` về `idle` để lần mount sau có thể fetch lại. Abort không được xem là lỗi nghiệp vụ.
 
 Model sách sau khi transform:
 
@@ -325,7 +337,7 @@ Màu sắc được định nghĩa bằng CSS variables trong `src/index.css`. K
 | Hook | Nội dung trong dự án |
 | --- | --- |
 | `useState` | Quản lý form login, search query, category, page, image error |
-| `useEffect` | Sync `localStorage`, fetch dữ liệu bằng thunk trigger, lock scroll khi overlay mở, lắng nghe phím Escape |
+| `useEffect` | Sync `localStorage`, dispatch thunk tải sách khi page mount, lock scroll khi overlay mở, lắng nghe phím Escape |
 | `useContext` | Chia sẻ auth và theme giữa các component |
 | `useMemo` | Tính `filteredBooks`, `paginatedBooks`, `pageNumbers` |
 | `useCallback` | Giữ reference handler ổn định cho các component memoized |
@@ -382,3 +394,11 @@ https://covers.openlibrary.org/b/id/{cover_i}-M.jpg
 - `src/features/cart/*`: ví dụ Redux Toolkit cho domain state có derived data và persistence theo user.
 - `src/features/books/*`: ví dụ Redux Toolkit cho async state, thunk và cache service.
 - `src/stores/uiStore.js`: ví dụ Zustand cho UI state nhẹ.
+
+## Ghi chú refactor gần nhất
+
+- `Pagination.jsx` đã được dọn backlog: bỏ import `use` dư, bỏ hard-code trang cuối `50`, sửa điều kiện render pagination và giữ Rules of Hooks đúng thứ tự.
+- `booksThunks.js` dùng `condition` để chống dispatch trùng ở tầng thunk, thay vì chỉ dựa vào guard trong component.
+- `HomePage.jsx` không abort `fetchBooks()` trong cleanup effect để tránh React `StrictMode` trong dev hủy request thật.
+- `products.js` vẫn nhận `AbortSignal` trong `fetchBook(signal)` để giữ khả năng abort nếu sau này có use case phù hợp hơn.
+- `LoginModal.jsx` đã bỏ biến typo `isLoggIn` không dùng.

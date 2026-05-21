@@ -26,47 +26,90 @@ Key ideas from the PDF:
 
 ## Current Zest State Map
 
-Current app state is distributed like this:
+State hiện tại của app sau refactor được phân bổ như sau:
 
 - `src/context/ThemeContext.jsx`
-  - Stores `theme`.
-  - Syncs `data-theme` to `document.documentElement`.
-  - Persists `zest-theme` to `localStorage`.
-  - This is a good Context API use case.
+  - Lưu `theme`.
+  - Đồng bộ `data-theme` lên `document.documentElement`.
+  - Persist `zest-theme` vào `localStorage`.
+  - Đây vẫn là use case phù hợp cho Context API.
 
 - `src/context/AuthContext.jsx`
-  - Stores `user` and `authError`.
-  - Handles fake login/logout using `src/data/users.js`.
-  - Persists `zest-user` to `localStorage`.
-  - This can stay Context initially because auth is simple.
+  - Lưu `user` và `authError`.
+  - Xử lý fake login/logout bằng `src/data/users.js`.
+  - Persist `zest-user` vào `localStorage`.
+  - Auth vẫn ở Context vì hiện tại còn đơn giản.
 
-- `src/context/CartContext.jsx`
-  - Uses `useReducer`.
-  - Stores `items`.
-  - Supports add, remove, increase, decrease, clear, and load cart.
-  - Derives `totalItems`, `subtotal`, and `isEmpty`.
-  - Persists cart per user with keys like `zest-cart-{user.id}` and `zest-cart-guest`.
-  - This is the best first Redux Toolkit candidate.
+- `src/features/cart/cartSlice.js`
+  - Lưu `items`.
+  - Hỗ trợ add, remove, increase, decrease, clear và load cart.
+  - Giữ reducer logic pure; không đọc/ghi `localStorage` trong reducer.
+  - Thay thế `src/context/CartContext.jsx` cũ. Bản cũ chỉ còn được giữ làm tài liệu ở `docs/reference/CartContext.before-redux.jsx`.
 
-- `src/hooks/useBooks.js`
-  - Fetches books from Open Library.
-  - Stores `products`, `loading`, and `error`.
-  - Reads/writes `zest-books-cache` with a 24-hour TTL.
-  - This is the best `createAsyncThunk` and async state candidate.
+- `src/features/cart/cartSelectors.js`
+  - Tính derived data: `totalItems`, `subtotal`, `isEmpty`, và tìm item theo id.
+  - Giữ các phép tính cart dùng chung bên ngoài UI component.
+
+- `src/features/cart/CartPersistenceBridge.js`
+  - Đọc `user` từ `AuthContext`.
+  - Load/save cart bằng các key như `zest-cart-{user.id}` và `zest-cart-guest`.
+  - Dùng bridge thay vì middleware vì auth chưa nằm trong Redux state.
+
+- `src/features/books/booksSlice.js`
+  - Lưu `items`, `status` và `error`.
+  - Xử lý `fetchBooks.pending`, `fetchBooks.fulfilled` và `fetchBooks.rejected`.
+  - Xem abort là lỗi kỹ thuật không phải lỗi nghiệp vụ, rồi đưa `status` về `idle`.
+
+- `src/features/books/booksThunks.js`
+  - Dùng `createAsyncThunk`.
+  - Đọc cache trước khi fetch network.
+  - Truyền `signal` xuống `fetchBook(signal)`.
+  - Dùng `condition` để chặn fetch trùng khi `books.status` không còn là `idle`.
+
+- `src/features/books/booksCache.js`
+  - Đọc/ghi `zest-books-cache` với TTL 24 giờ.
+  - Giữ side effect cache bên ngoài reducer.
+
+- `docs/reference/useBooks.before-redux.js`
+  - Tài liệu tham khảo cho cách fetch/cache bằng custom hook trước khi chuyển sang Redux Toolkit.
 
 - `src/pages/HomePage.jsx`
-  - Stores `searchQuery`, `activeCategory`, `currentPage`, and `isLoginOpen`.
-  - Derives `filteredBooks` and `paginatedBooks`.
-  - This can stay local first. Later, some UI state can move to Zustand for comparison.
+  - Lưu `searchQuery`, `activeCategory` và `currentPage`.
+  - Dispatch `fetchBooks()` khi page mount.
+  - Tính `filteredBooks` và `paginatedBooks`.
+  - Các state này vẫn là local UI workflow state.
 
 - `src/components/Header.jsx`
-  - Stores `isCartOpen` and `isSideOpen`.
-  - Locks body scroll and handles Escape key.
-  - This is a good Zustand candidate if the goal is to learn lightweight global UI state.
+  - Đọc overlay state/action từ `src/stores/uiStore.js`.
+  - Lock body scroll và xử lý phím Escape.
+  - Dùng custom hook nội bộ `useHeaderOverlayState()` với `useShallow`.
+
+- `src/stores/uiStore.js`
+  - Lưu overlay UI state nhẹ: `isCartOpen`, `isSideOpen` và `isLoginOpen`.
+  - Expose các action theo intent như `openCart`, `closeCart`, `openLogin` và `closeAllOverlays`.
+
+## Current Refactor Status
+
+- Phase 0: hoàn tất.
+- Phase 1: hoàn tất.
+- Phase 2: hoàn tất.
+- Phase 3: hoàn tất.
+- Phase 4: hoàn tất bằng `CartPersistenceBridge` thay vì middleware vì auth vẫn nằm trong Context.
+- Phase 5: hoàn tất.
+- Phase 6: hoàn tất với cache helpers và thunk `condition`.
+- Phase 7: hoàn tất.
+- Phase 8: hoàn tất bằng quyết định giữ theme trong Context.
+- Phase 9: hoàn tất cho kiến trúc hiện tại, README và các file reference.
+
+Ghi chú học tập quan trọng:
+
+- `HomePage.jsx` hiện dispatch `fetchBooks()` khi mount và để thunk `condition` chặn fetch trùng.
+- Code cố ý không gọi `promise.abort()` trong cleanup effect vì React `StrictMode` ở môi trường dev có thể chạy cleanup giả, làm request thật bị abort trước khi `fulfilled`.
+- `fetchBook(signal)` vẫn nhận `AbortSignal`, nên khả năng cancellation vẫn còn để dùng cho những use case phù hợp hơn sau này.
 
 ## Target Architecture For Learning
 
-The likely end-state after the learning path:
+Kiến trúc hiện tại sau learning path:
 
 ```text
 src/
@@ -76,10 +119,11 @@ src/
     cart/
       cartSlice.js
       cartSelectors.js
-      cartPersistenceMiddleware.js
+      CartPersistenceBridge.js
     books/
       booksSlice.js
       booksThunks.js
+      booksCache.js
       booksSelectors.js
   stores/
     uiStore.js
@@ -88,28 +132,28 @@ src/
     ThemeContext.jsx
 ```
 
-This is not a required final folder structure. It is a teaching target that can be adjusted to fit the project as it evolves.
+Kiến trúc này vẫn có thể điều chỉnh nếu sau này auth chuyển vào Redux hoặc cart persistence được chuyển thành middleware thật.
 
-Expected ownership:
+Quyền sở hữu state hiện tại:
 
-- Redux Toolkit owns complex global domain state:
+- Redux Toolkit sở hữu global domain state phức tạp:
   - cart
   - books async state
 
-- Zustand owns lightweight global UI state:
+- Zustand sở hữu global UI state nhẹ:
   - cart drawer open/closed
   - side menu open/closed
   - login modal open/closed
-  - optionally theme, only if the user wants to compare with Context
 
-- Context can continue to own simple app-level concerns:
+- Context tiếp tục sở hữu app-level state đơn giản:
   - auth user
-  - theme, unless moved for learning
+  - theme
 
-- Local component state remains local:
+- Local component state vẫn nằm local:
   - form fields
   - password visibility
   - image load errors
+  - search/filter/page state
   - temporary input state
 
 ## Phase 0: Baseline Understanding
@@ -118,8 +162,8 @@ Goal: understand the current implementation before changing it.
 
 User exercises:
 
-1. Draw the current provider tree from `src/App.jsx`.
-2. List every action in `CartContext.jsx` and write one example payload for each.
+1. Draw the provider tree from `src/App.jsx`.
+2. List every action from the historical `docs/reference/CartContext.before-redux.jsx` and write one example payload for each.
 3. Explain why `CartContext` uses `useReducer` instead of several `useState` calls.
 4. Explain which code is pure reducer logic and which code is side effect.
 5. Trace what happens when a user clicks `Add to Cart` in `ProductCard.jsx`.
@@ -301,6 +345,12 @@ Recommended learning path:
 
 - Start with Option C because it teaches middleware without forcing auth migration too early.
 
+Current implementation note:
+
+- Zest currently uses `CartPersistenceBridge.js` for both cart load and save.
+- This is intentional because auth is still owned by `AuthContext`.
+- A true cart persistence middleware becomes cleaner if auth later moves into Redux or if user id is carried explicitly in cart-related actions.
+
 Mentor review checklist:
 
 - Middleware calls `next(action)` exactly once.
@@ -336,7 +386,7 @@ Suggested user tasks:
    - `error: null`
 
 4. Keep `fetchBook` in `src/data/products.js` as the API function.
-5. Dispatch fetch when the page mounts if status is `idle`.
+5. Dispatch fetch when the page mounts; let thunk `condition` prevent duplicate fetches unless status is `idle`.
 6. Replace `useBooks` or convert it into a thin Redux hook wrapper.
 
 Mentor review checklist:
@@ -345,12 +395,14 @@ Mentor review checklist:
 - Slice handles pending/fulfilled/rejected clearly.
 - Component does not manually manage loading/error for books.
 - Fetch does not repeat unnecessarily on every render.
+- React `StrictMode` in development does not abort the real request before `fulfilled`.
 
 Discussion prompts:
 
 - Why does async code not belong inside a reducer?
 - What is the difference between `loading` boolean and `status` enum?
 - Where should transformation from Open Library data to app model happen?
+- Why does thunk `condition` protect the whole app better than a component-only guard?
 
 ## Phase 6: Books Cache Strategy
 
@@ -378,6 +430,12 @@ Suggested user tasks:
 Recommended learning path:
 
 - Use a small service first. Middleware for API cache is more advanced and can obscure the core `createAsyncThunk` lesson.
+
+Current implementation note:
+
+- `booksCache.js` owns cache read/write and TTL checks.
+- `booksThunks.js` calls cache helpers before network fetch.
+- `fetchBook(signal)` accepts `AbortSignal`, but `HomePage` currently does not abort in cleanup because of React `StrictMode` behavior in development.
 
 Mentor review checklist:
 
@@ -499,7 +557,7 @@ Start with cart because it already has reducer-style logic.
 
 Assignment:
 
-1. Read `src/context/CartContext.jsx`.
+1. Read `docs/reference/CartContext.before-redux.jsx`.
 2. Write down each action and payload.
 3. Create a draft `cartSlice.js`.
 4. Do not connect it to the app yet.
@@ -516,9 +574,9 @@ Acceptance criteria:
 
 These are not part of the state-management roadmap, but they were noticed during review:
 
-- `src/components/LoginModal.jsx` destructures `isLoggIn`, which appears to be a typo and is unused.
-- `src/components/Pagination.jsx` imports `use` from React but does not use it.
-- `src/components/Pagination.jsx` has a condition `totalPages <= 1 && totalPages >= 50`, which can never be true.
-- `src/components/Pagination.jsx` uses lowercase `prevBtn` and `nextBtn` functions as JSX tags. React components should be PascalCase.
+- `src/components/LoginModal.jsx` từng destructure `isLoggIn`, có vẻ là typo và không được dùng. Đã sửa.
+- `src/components/Pagination.jsx` từng import `use` từ React nhưng không dùng. Đã sửa.
+- `src/components/Pagination.jsx` từng có điều kiện `totalPages <= 1 && totalPages >= 50`, vốn không thể đúng. Đã sửa.
+- `src/components/Pagination.jsx` từng có logic page number gắn với trang cuối hard-code. Hiện đã dùng `totalPages`.
 
-Handle these separately so the learning refactor stays focused.
+Handle future non-state cleanup separately so the learning refactor stays focused.
